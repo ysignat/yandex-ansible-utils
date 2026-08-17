@@ -1,0 +1,22 @@
+namespace: ysignat
+name: yandex
+version: 0.1.0
+readme: README.md
+repository: https://github.com/ysignat/yandex-ansible-utils
+documentation: https://github.com/ysignat/yandex-ansible-utils/blob/main/src/README.md
+homepage: https://github.com/ysignat/yandex-ansible-utils
+issues: https://github.com/ysignat/yandex-ansible-utils/issues
+authors:
+  - ysignat <ignatovegors@gmail.com>
+description: |-
+  An Ansible collection providing utilities and integrations for managing and automating Yandex Cloud resources.
+license:
+  - MIT
+tags:
+  - yandex
+  - cloud
+  - automation
+  - ansible
+build_ignore:
+  - .venv
+  - python
