@@ -12,6 +12,22 @@ pre-stable. Whenever either version changes, update both `pyproject.toml` and
 `src/galaxy.yml` so they remain synchronized. Update `src/CHANGELOG.md` when
 preparing a release.
 
+## Automated version tagging
+
+- `.github/workflows/tag-version.yml` runs after every push to `main` and has
+  `contents: write` permission so its `GITHUB_TOKEN` can push a Git tag.
+- The workflow reads `version` from `src/galaxy.yml` and `project.version` from
+  `pyproject.toml`. A mismatch fails with a GitHub Actions error annotation that
+  reports both values and asks the contributor to synchronize the files.
+- A matching version is used verbatim as the tag name; do not add a `v` prefix.
+  The workflow creates an annotated tag on the pushed commit.
+- Rerunning the workflow is safe when the tag already points to that commit. If
+  the tag points to another commit, the workflow fails and requires a version
+  bump; it must never move or overwrite an existing version tag.
+- Keep full Git history and tags available in the checkout step because the
+  duplicate-tag safety check depends on them. Keep tagging jobs serialized with
+  the workflow's concurrency group to reduce races between rapid pushes.
+
 ## Layout
 
 - `src/galaxy.yml`: Galaxy collection metadata.
