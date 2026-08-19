@@ -16,17 +16,30 @@ preparing a release.
 
 - `.github/workflows/tag-version.yml` runs after every push to `main` and has
   `contents: write` permission so its `GITHUB_TOKEN` can push a Git tag.
-- The workflow reads `version` from `src/galaxy.yml` and `project.version` from
-  `pyproject.toml`. A mismatch fails with a GitHub Actions error annotation that
-  reports both values and asks the contributor to synchronize the files.
+- Tagging depends on the reusable `.github/workflows/checks.yml` workflow. Unit
+  tests and Ruff checks run on every supported Python minor version, with Ruff's
+  target version matched to the matrix interpreter. Ansible Lint, the Poetry
+  package build, and the Galaxy collection build run once on Python 3.14.
+  CI also installs the Galaxy artifact in an isolated directory and validates
+  its generated Lockbox documentation. Everything must pass before a tag is
+  created. Pull requests targeting `main` run the same checks directly.
+- The reusable checks workflow reads `version` from `src/galaxy.yml` and
+  `project.version` from `pyproject.toml`. A mismatch fails pull-request and
+  tagging checks with a GitHub Actions error annotation that reports both
+  values. It also verifies that the synchronized version is a valid Git tag
+  name. The validated version is passed to the tagging job as a workflow output.
 - A matching version is used verbatim as the tag name; do not add a `v` prefix.
-  The workflow creates an annotated tag on the pushed commit.
-- Rerunning the workflow is safe when the tag already points to that commit. If
-  the tag points to another commit, the workflow fails and requires a version
-  bump; it must never move or overwrite an existing version tag.
+  If that tag does not exist, the workflow creates an annotated tag on the
+  pushed commit. An existing version tag makes tagging a successful no-op,
+  regardless of which commit it points to; tags are never moved or overwritten.
 - Keep full Git history and tags available in the checkout step because the
   duplicate-tag safety check depends on them. Keep tagging jobs serialized with
   the workflow's concurrency group to reduce races between rapid pushes.
+- CI uses Ruff's GitHub output format, the pytest GitHub annotation plugin, and
+  `.github/ansible-lint-matcher.json` with Ansible Lint's `pep8` format to place
+  source-located failures directly in the GitHub UI.
+- Pin third-party GitHub Actions to full commit SHAs and retain an adjacent
+  release-version comment. Update the SHA and comment together during upgrades.
 
 ## Layout
 

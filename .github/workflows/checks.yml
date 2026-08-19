@@ -1,0 +1,155 @@
+name: Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_call:
+    outputs:
+      version:
+        description: Validated project version
+        value: ${{ jobs.version.outputs.value }}
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Validate project version
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.version.outputs.value }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+
+      - name: Read and compare versions
+        id: version
+        shell: bash
+        run: |
+          galaxy_version="$(ruby -ryaml -e 'puts YAML.safe_load(File.read("src/galaxy.yml")).fetch("version")')"
+          pyproject_version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+
+          if [[ "${galaxy_version}" != "${pyproject_version}" ]]; then
+            message="src/galaxy.yml has version '${galaxy_version}', but pyproject.toml "
+            message+="project.version is '${pyproject_version}'. Update both files to "
+            message+="the same version."
+            echo "::error title=Version mismatch::${message}"
+            exit 1
+          fi
+
+          if ! git check-ref-format "refs/tags/${galaxy_version}"; then
+            echo "::error title=Invalid version tag::Version '${galaxy_version}' cannot be used as a Git tag name."
+            exit 1
+          fi
+
+          echo "value=${galaxy_version}" >> "${GITHUB_OUTPUT}"
+          echo "Both project files declare valid tag version ${galaxy_version}."
+
+  quality:
+    name: Quality and build checks
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      ANSIBLE_LOCAL_TEMP: /tmp/ansible-yandex-checks
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+
+      - name: Install Poetry
+        run: pipx install poetry==2.4.1
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Validate Poetry configuration and lock file
+        run: poetry check --lock --strict
+
+      - name: Build project
+        run: poetry build
+
+      - name: Export collection runtime requirements
+        run: poetry export -f requirements.txt --output src/requirements.txt
+
+      - name: Build Ansible collection
+        run: >-
+          poetry run ansible-galaxy collection build src
+          --output-path /tmp/ansible-yandex-build
+          --force
+
+      - name: Install built Ansible collection
+        env:
+          ANSIBLE_COLLECTIONS_PATH: /tmp/ansible-yandex-collections
+          ANSIBLE_GALAXY_CACHE_DIR: /tmp/ansible-yandex-galaxy-cache
+          ANSIBLE_LOCAL_TEMP: /tmp/ansible-yandex-install
+          VERSION: ${{ needs.version.outputs.value }}
+        run: >-
+          poetry run ansible-galaxy collection install
+          /tmp/ansible-yandex-build/ysignat-yandex-${VERSION}.tar.gz
+          --collections-path /tmp/ansible-yandex-collections
+          --force
+
+      - name: Validate installed collection documentation
+        env:
+          ANSIBLE_COLLECTIONS_PATH: /tmp/ansible-yandex-collections
+          ANSIBLE_LOCAL_TEMP: /tmp/ansible-yandex-doc
+        run: poetry run ansible-doc -t lookup ysignat.yandex.lockbox
+
+      - name: Run Ansible lint
+        run: |
+          echo "::add-matcher::.github/ansible-lint-matcher.json"
+          poetry run ansible-lint --profile production --format pep8 src
+
+  tests:
+    name: Python ${{ matrix.python-version }} checks
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: "3.12"
+            ruff-target: py312
+          - python-version: "3.13"
+            ruff-target: py313
+          - python-version: "3.14"
+            ruff-target: py314
+    env:
+      ANSIBLE_LOCAL_TEMP: /tmp/ansible-yandex-tests
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Poetry
+        run: pipx install poetry==2.4.1
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run Ruff lint checks
+        run: >-
+          poetry run ruff --config pyproject.toml check
+          --target-version ${{ matrix.ruff-target }}
+          --output-format github .
+
+      - name: Run Ruff format checks
+        run: >-
+          poetry run ruff --config pyproject.toml format
+          --target-version ${{ matrix.ruff-target }}
+          --diff --output-format github .
+
+      - name: Run unit tests
+        run: poetry run pytest

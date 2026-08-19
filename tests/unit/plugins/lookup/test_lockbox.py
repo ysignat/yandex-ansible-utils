@@ -1,5 +1,6 @@
-from types import TracebackType
-from typing import Any, Protocol, Self, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Protocol, Self, cast
 
 import grpc
 import pytest
@@ -8,6 +9,9 @@ from ansible import constants as ansible_constants
 from ansible.errors import AnsibleError
 
 from plugins.lookup import lockbox
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 
 class FakeRpcError(grpc.RpcError):

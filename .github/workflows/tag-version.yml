@@ -13,57 +13,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  checks:
+    name: Run project checks
+    uses: ./.github/workflows/checks.yml
+
   tag-version:
     name: Validate versions and create tag
+    needs: checks
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out the pushed commit
-        uses: actions/checkout@v6
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
           fetch-depth: 0
 
-      - name: Read and compare versions
-        id: version
-        shell: bash
-        run: |
-          galaxy_version="$(ruby -ryaml -e 'puts YAML.safe_load(File.read("src/galaxy.yml")).fetch("version")')"
-          pyproject_version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
-
-          if [[ "${galaxy_version}" != "${pyproject_version}" ]]; then
-            echo "::error title=Version mismatch::src/galaxy.yml has version '${galaxy_version}', but pyproject.toml project.version is '${pyproject_version}'. Push a follow-up commit that updates both files to the same version."
-            exit 1
-          fi
-
-          echo "value=${galaxy_version}" >> "${GITHUB_OUTPUT}"
-          echo "Both project files declare version ${galaxy_version}."
-
-      - name: Validate tag name
-        env:
-          VERSION: ${{ steps.version.outputs.value }}
-        shell: bash
-        run: |
-          if ! git check-ref-format "refs/tags/${VERSION}"; then
-            echo "::error title=Invalid version tag::Version '${VERSION}' cannot be used as a Git tag name."
-            exit 1
-          fi
-
       - name: Create and push tag
         env:
-          VERSION: ${{ steps.version.outputs.value }}
+          VERSION: ${{ needs.checks.outputs.version }}
         shell: bash
         run: |
           tag_ref="refs/tags/${VERSION}"
 
           if git rev-parse --verify --quiet "${tag_ref}^{commit}" >/dev/null; then
             tagged_commit="$(git rev-parse "${tag_ref}^{commit}")"
-            if [[ "${tagged_commit}" == "${GITHUB_SHA}" ]]; then
-              echo "Tag ${VERSION} already points to ${GITHUB_SHA}; nothing to do."
-              exit 0
-            fi
-
-            echo "::error title=Version tag already exists::Tag '${VERSION}' points to commit ${tagged_commit}, not the pushed commit ${GITHUB_SHA}. Bump the version in src/galaxy.yml and pyproject.toml."
-            exit 1
+            echo "Tag ${VERSION} already exists at ${tagged_commit}; nothing to do."
+            exit 0
           fi
 
           git config user.name "Boots"
