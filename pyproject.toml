@@ -1,6 +1,6 @@
 [project]
 name = "yandex-ansible-utils"
-version = "0.1.2"
+version = "0.1.3"
 description = "An Ansible collection providing utilities and integrations for managing and automating Yandex Cloud resources."
 authors = [{ name = "ysignat", email = "ignatovegors@gmail.com" }]
 readme = "README.md"

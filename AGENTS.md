@@ -9,8 +9,8 @@ collection root is `src`, not the repository root.
 
 While the collection version is below `1.0.0`, treat its public interfaces as
 pre-stable. Whenever either version changes, update both `pyproject.toml` and
-`src/galaxy.yml` so they remain synchronized. Update `src/CHANGELOG.md` when
-preparing a release.
+`src/galaxy.yml` so they remain synchronized. Add a matching, unprefixed
+`## <version>` heading to `src/CHANGELOG.md` whenever preparing a release.
 
 ## Automated version tagging
 
@@ -26,8 +26,10 @@ preparing a release.
 - The reusable checks workflow reads `version` from `src/galaxy.yml` and
   `project.version` from `pyproject.toml`. A mismatch fails pull-request and
   tagging checks with a GitHub Actions error annotation that reports both
-  values. It also verifies that the synchronized version is a valid Git tag
-  name. The validated version is passed to the tagging job as a workflow output.
+  values. It also requires an exact `## <version>` heading in
+  `src/CHANGELOG.md` for the `src/galaxy.yml` version and verifies that the
+  synchronized version is a valid Git tag name. The validated version is passed
+  to the tagging job as a workflow output.
 - A matching version is used verbatim as the tag name; do not add a `v` prefix.
   If that tag does not exist, the workflow creates an annotated tag on the
   pushed commit. An existing version tag makes tagging a successful no-op,

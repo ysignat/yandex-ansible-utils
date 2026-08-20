@@ -24,7 +24,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
 
-      - name: Read and compare versions
+      - name: Validate release metadata
         id: version
         shell: bash
         run: |
@@ -36,6 +36,14 @@ jobs:
             message+="project.version is '${pyproject_version}'. Update both files to "
             message+="the same version."
             echo "::error title=Version mismatch::${message}"
+            exit 1
+          fi
+
+          changelog_heading="## ${galaxy_version}"
+          if ! grep --fixed-strings --line-regexp --quiet \
+            "${changelog_heading}" src/CHANGELOG.md; then
+            message="Expected changelog heading '${changelog_heading}'."
+            echo "::error file=src/CHANGELOG.md,title=Missing changelog entry::${message}"
             exit 1
           fi
 

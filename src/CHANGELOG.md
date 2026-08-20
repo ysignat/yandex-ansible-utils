@@ -1,8 +1,18 @@
 # ysignat.yandex release notes
 
-## v0.1.0
+## 0.1.3
 
-### Release summary
+Minor changes
+
+## 0.1.2
+
+Minor changes
+
+## 0.1.1
+
+Minor changes
+
+## 0.1.0
 
 Initial development release of the `ysignat.yandex` collection, including
 the Yandex Cloud Lockbox lookup plugin.

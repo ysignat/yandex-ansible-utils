@@ -17,29 +17,61 @@ The collection and its controller-side Python dependencies are installed
 separately because Ansible Galaxy does not install Python dependencies declared
 by a collection.
 
-Install the collection from its Git repository:
+In the versioned examples below, replace `<version>` with the release to
+install.
+
+Install the latest release from Ansible Galaxy:
 
 ```bash
+ansible-galaxy collection install ysignat.yandex
+```
+
+To install a specific version, add a version constraint such as
+`ysignat.yandex:==<version>`.
+
+Alternatively, install a release tarball directly from GitHub:
+
+```bash
+VERSION="<version>"
 ansible-galaxy collection install \
-  git@github.com:ysignat/yandex-ansible-utils.git
+  "https://github.com/ysignat/yandex-ansible-utils/releases/download/${VERSION}/ysignat-yandex-${VERSION}.tar.gz"
 ```
 
-For reproducible installations, append a Git tag or commit after a comma.
-
-Install the controller-side Python dependencies with Poetry:
+Or install the collection source from a Git tag:
 
 ```bash
-poetry add git+ssh://git@github.com/ysignat/yandex-ansible-utils.git
+VERSION="<version>"
+ansible-galaxy collection install \
+  "git+ssh://git@github.com/ysignat/yandex-ansible-utils.git,${VERSION}"
 ```
 
-Alternatively, install the requirements included in the built collection:
+Use Poetry to add the controller-side Python dependencies from a Git tag:
 
 ```bash
+VERSION="<version>"
+poetry add \
+  "git+ssh://git@github.com/ysignat/yandex-ansible-utils.git@${VERSION}"
+```
+
+Alternatively, add them from the release source-code tarball:
+
+```bash
+VERSION="<version>"
+poetry add \
+  "https://github.com/ysignat/yandex-ansible-utils/archive/refs/tags/${VERSION}.tar.gz"
+```
+
+When Poetry does not manage the Ansible environment, install the same package
+with pip instead:
+
+```bash
+VERSION="<version>"
 python -m pip install \
-  -r <collections-path>/ansible_collections/ysignat/yandex/requirements.txt
+  "git+ssh://git@github.com/ysignat/yandex-ansible-utils.git@${VERSION}"
 ```
 
-Adjust the path when using a custom collection installation directory.
+Replace the Git URL with the release source-code tarball URL from the preceding
+example to install that archive with pip.
 
 For Ansible execution environments, the packaged
 `meta/execution-environment.yml` directs `ansible-builder` to
